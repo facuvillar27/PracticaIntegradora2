@@ -1,8 +1,14 @@
 import { Router } from "express";
 import passport from "passport";
 import jwt from 'jsonwebtoken';
+import Users from "../dao/dbManagers/users.js";
+import { passportCall } from "../utils.js";
+import Products from "../dao/dbManagers/products.js";
 
 const router = Router();
+
+const usersManager = new Users();
+const productsManager = new Products();
 
 router.post('/register',passport.authenticate('register',{passReqToCallback:true,session:false,failureRedirect:'api/sessions/failedRegister',failureMessage:true}),(req,res)=>{
     res.send({status:"success",message:"User registered",payload:req.user._id});
@@ -20,13 +26,24 @@ router.post('/login',passport.authenticate('login',{failureRedirect:'/api/sessio
         role: req.user.role,
         email: req.user.email
     }
-    const token = jwt.sign(serializedUser,'CoderSecret',{expiresIn:"1h"})
+    const token = jwt.sign(serializedUser,'CoderKeyQueNadieDebeSaber',{expiresIn:"1h"})
     res.cookie('coderCookie',token,{maxAge:3600000}).send({status:"success",payload:serializedUser});
 })
 
 router.get('/failedLogin',(req,res)=>{
     console.log(req.message);
     res.send("failed Login");
+})
+
+router.get('/current', passportCall("jwt"), async (req,res)=>{
+    let user = await usersManager.getBy({ "email": req.user.email });
+    let product = await productsManager.getAll();
+    let cartProducts = user.cart.products;
+    res.render("current", {
+        user,
+        product,
+        cartProducts,
+    })
 })
 
 export default router;
